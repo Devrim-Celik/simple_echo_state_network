@@ -12,12 +12,11 @@ import scipy.linalg
 import NARMA10
 import error_metrics as em
 
-# TODO add generative
 class ESN():
     """
     Echo State Network Class
     """
-    def __init__(self, inSize, outSize, resSize, alpha):
+    def __init__(self, inSize, outSize, resSize, alpha, sparsity = 0.2):
         """
         Constructor of ESN
 
@@ -26,12 +25,14 @@ class ESN():
             outSize (int): dimension of outputs
             resSize (int): size of reservoir
             alpha (float): leaking rate
+            sparsity (float): portion of connections != 0
 
         Attributes:
             inSize (int): dimension of inputs
             outSize (int): dimension of outputs
             resSize (int): size of reservoir
             alpha (float): leaking rate
+            sparsity (float): portion of connections != 0
             Win (np.array): input to reservoir matrix [inSize+1 x resSize]
             W (np.array): reservoir to reservoir matrix [resSize x resSize]
         """
@@ -39,162 +40,137 @@ class ESN():
         self.resSize = resSize
         self.outSize = outSize
         self.alpha = alpha
+        self.sparsity = sparsity
 
+        # +1 for Bias
         self.Win = np.random.rand(inSize+1, resSize)-0.5 # Input --> Reservoir
         self.W = np.random.rand(resSize, resSize)-0.5 # Reservoir --> Reservoir
 
-        print('[*]Computing spectral radius...')
+        # First, make the reservoir connections sparse
+        self.W[np.random.rand(resSize, resSize)>self.sparsity] = 0
+
+
+        # calculate spectral radius and scale W, so its new spectral radius
+        # is slighty smaller than 1
         spec_rad = max(abs(scipy.linalg.eig(self.W)[0]))
-        print('\t[+]Done.')
-        # TODO why 1.25
-        self.W *= 1.25/spec_rad
-        #self.W /= spec_rad
+        self.W /= spec_rad/0.9
 
-
-
-    def train(self, data, target, train_cycles, warmup_cycles):
+    def reservoir(self, data, new_start=True):
         """
-        Initiate training phase of ESN
-
         Args:
-            data (np.array): input data points [train_cycles+warmup_phase x 1]
-            target (np.array): target values [train_cycles+warmup_phase x 1]
-            train_cycles (int): amount of training cycles/inputs
-            warmup_cycles (int): amount of warmup cycles/inputs
+            data (np.array): input data points [cycles x 1]
+            new_start (boolean): create new initial reservoir state?
 
         Attributes:
-            DM_train (np.array): design matrix [train_cycles x (1+inSize+resSize)]
-            u_train (np.array): input data points [train_cycles+warmup_phase x 1]
-            Y_train (np.array): target values [train_cycles+warmup_phase x 1]
-            R (np.array): czrrent reservoir state [1 x resSize]
-            Wout (np.array): input&reservoir to output matrix [(1+inSize+resSize) x outSize]
+            design_m (np.array): design matrix with: bias+input+
+                                reservoir activity [cycles x (1+inSize+resSize)]
+            R (np.array): reservoir activation [1 x resSize]
         """
-        self.DM_train = np.zeros((train_cycles, 1+self.inSize+self.resSize))
-        self.u_train = data
-        self.Y_train = target[warmup_cycles:] # exclude warmup target values
-        # TODO try different initializing values
-        self.R = np.zeros((1, self.resSize)) # reservoir State
+        self.design_m = np.zeros((data.shape[0], 1+self.inSize+self.resSize))
 
-        print('[*]Training...')
+        # otherwise, continue from R from execution of function before
+        if new_start:
+            self.R = 0.1*(np.ones((1, self.resSize)) - 0.5)
 
-        for t in range(warmup_cycles + train_cycles):
+        for t in range(data.shape[0]):
 
-            u = self.u_train[t] # initialize input at timestep t
+            u = data[t] # initialize input at timestep t
 
             # generate new reservoir state
             # first summand: influence of last reservoir state (same neuron)
             # second summand:
             #   first dot product: influence of input
-            #   second dot product: influence of of last reservoir state (other neurons)
-            self.R = (1 - self.alpha)*self.R + self.alpha*np.tanh( np.dot( np.hstack((1,u)), self.Win) + np.dot(self.R, self.W))
+            #   second dot product: influence of of last reservoir
+            #                       state (other neurons)
+            self.R = (1 - self.alpha)*self.R +                              \
+                self.alpha*np.tanh( np.dot( np.hstack((1,u)), self.Win) +   \
+                np.dot(self.R, self.W))
 
-            # in case we are not in warmup, save values in design matrix
-            if t >= warmup_cycles:
-                # TODO ugly
-                temp = np.append(1,u)
-                self.DM_train[t-warmup_cycles] = np.append(temp, self.R)
+            # put bias, input & reservoir activation into one row
+            self.design_m[t] = np.append(np.append(1,u), self.R)
 
-        # calculate Wout/("weights") with linear regression via pseudoinverse
-        self.Wout = np.dot( np.linalg.pinv(self.DM_train), self.Y_train )
+        return self.design_m
 
-        print('\t[+]Done.')
-
-
-
-    def inference(self, data, target, test_cycles):
+    def plot_reservoir(self, path='pictures/', name='Plot',
+                        nr_neurons=20, max_plot_cycles=100, plot_show=False):
         """
-        Use trained ESN with given input (as a predictive model)
-
-        Args:
-            data (np.array): input data points [test_cycles x 1]
-            target (np.array): target values (for later plotting)
-            test_cycles (int): amount of testing cycles/inputs
-
-        Attributes:
-            u_test (np.array): input data points [test_cycles x 1]
-            Y (np.array): target values (for later plotting)
-            Yhat (np.array): predictions of ESN [test_cycles x outSize]
-            R_history (np.array): history of reservoir states [test_cycles x resSize]
-
-        Returns:
-            Yhat
-        """
-
-        self.u_test = data
-        self.Y = target
-        self.Yhat = np.zeros((test_cycles, self.outSize))
-        self.R_history = np.zeros((test_cycles, self.resSize))
-
-        print('[*]Testing...')
-
-        for t in range(test_cycles):
-            u = self.u_test[t]
-
-            self.R  = (1 - self.alpha)*self.R + self.alpha*np.tanh( np.dot( np.hstack((1,u)), self.Win) + np.dot(self.R, self.W))
-
-            # save R in history
-            self.R_history[t] = self.R
-
-            # caclulate output
-            # TODO ugly
-            temp = np.append(1,u)
-            self.Yhat[t] = np.dot( np.append(temp, self.R), self.Wout)
-
-        print('\t[+]Done.')
-
-        return self.Yhat
-
-    def plot(self, cycles, name='Plot', plot_input=True, plot_reservoir=True, nr_neurons=5, plot_target=True, plot_predictions=True, path='pictures/'):
-        """
-        Plotting after inference with trained ESN
+        Plotting reservoir states and their inputs from last use of .reservoir()
+        are saved in a figure (and optionally displayed)
 
         Args:
             path (string): path of the saved plot png
-            title (string): title of plot (in picture)
-            cycles (int): nr of cycles to be plotted
-            plot_input (boolean): plot input values?
-            plot_reservoir (boolean): plot reservoir values?
-                nr_neurons (int): number of reservoir neurons to be plotted
-            plot_target (boolean): plot target values?
-            plot_predictions (boolean): plot predicted values?
+            name (string): title of plot and name of saved .png
+            nr_neurons (int): nr of neurons to be plotted
+            max_plot_cycles (int): max number of cycles to be plotted
+            plot_show (boolean): display plot?
         """
+        # for plotting, separate bias, input, and real reservoir activations
+        # which were saved all together in the res_history
+        R = self.design_m[:, -self.resSize:]
+        # remove bias and get input
+        R_input = self.design_m[:, 1:-self.resSize]
 
-        if  plot_target or plot_predictions:
+        # check if we are below max_plot_cycles
+        if R_input.shape[0] > max_plot_cycles:
+            limit = max_plot_cycles
+        else:
+            limit = R_input.shape[0]
 
-            plt.figure(figsize=(20,10))
-            plt.title(name)
+        plt.figure("Reservoir Activity", figsize=(20,10)).clear()
+        plt.title("Reservoir Activity")
+        plt.plot(R_input[:limit], color='k', label='Input Signals', linewidth=4)
+        plt.plot(R[:limit, :nr_neurons], linewidth=2)
+        plt.legend(loc='upper right')
 
-            if plot_target:
-                plt.plot(self.Y[:cycles], color='b', label='Target Values', linewidth=6)
-            if plot_predictions:
-                plt.plot(self.Yhat[:cycles], color='r', label='Predictions of ESN', linewidth=2, linestyle='--')
-            if plot_input:
-                plt.plot(self.u_test[:cycles], color='k', label='Input Signals', linestyle=':')
-            if plot_reservoir:
-                plt.plot(self.R_history[:cycles, :nr_neurons], linewidth=0.33, label='Neuron X', )
+        plt.savefig(path + name + '_ReservoirActivity'+ '.png')
+        print('\t[+]Plot saved in', path + '_' + name + '.png')
 
-            plt.legend(loc='upper right')
-            plt.savefig(path + name + '.png')
-            print('Plots saved in', path + name + '.png')
+        if plot_show:
             plt.show()
 
-def default_test_NARMA10(plot_path='pictures/', plot_name='default_test_NARMA10', plot_cycles=100, train_cycles=4000, test_cycles=1000, warmup_cycles=100, alpha=0.8, resSize=1000):
+def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
+                        inSize=1, outSize=1, train_cycles=4000, test_cycles=100,
+                        alpha=0.8, resSize=1000):
 
-    # Data
-    data, Y = NARMA10.getData(warmup_cycles+train_cycles+test_cycles)
-    data_train, Y_train = data[:train_cycles+warmup_cycles], Y[:train_cycles+warmup_cycles]
-    data_test, Y_test = data[warmup_cycles+train_cycles:], Y[warmup_cycles+train_cycles:]
+    # Get Data
+    data, Y = NARMA10.getData(train_cycles+test_cycles)
+    data_train, Y_train = data[:train_cycles], Y[:train_cycles]
+    data, Y = NARMA10.getData(train_cycles+test_cycles)
+    data_test, Y_test = data[train_cycles:], Y[train_cycles:]
 
-    # Network
-    Echo = ESN(1, 1, resSize, alpha)
-    Echo.train(data_train, Y_train, train_cycles, warmup_cycles)
-    Yhat = Echo.inference(data_test, Y_test, test_cycles)
+    # Reservoir & Training
+        # setup reservoir
+    Echo = ESN(inSize, outSize, resSize, alpha)
+        # get reservoir activations for training data
+    RA_Train  = Echo.reservoir(data_train)
+        # caclulate output matrix via moore pensore pseudoinverse (linear reg)
+    Wout = np.dot(np.linalg.pinv(RA_Train), Y_train )
+        # get reservoir activation for test data
+    RA_Test = Echo.reservoir(data_test, new_start=True)
+        # calculate predictions using output matrix
+    Yhat = np.dot(RA_Test, Wout)
 
-    # Error
-    NRMSE = em.NRMSE(Y_test, Yhat)
+    # Calculate Error
+        # we throw away the first 50 values, cause the system needs
+        # enough input to being able to predict the NARMA10, since it is a
+        # delayed differential equation
+    NRMSE = em.NRMSE(Y_test, Yhat, throw=50)
+    #print(NRMSE)
 
     # Plotting & Saving
     plot_name += '_NRMSE=' + str(NRMSE)
-    Echo.plot(plot_cycles, path=plot_path, name=plot_name)
+    Echo.plot_reservoir(path=plot_path, name=plot_name)
 
-default_test_NARMA10()
+    # Prediction Plot
+    plt.figure('Prediction', figsize=(20,10)).clear()
+    plt.yscale('log')
+    plt.plot(Y_test, color='k', linewidth=5, label='Y')
+    plt.plot(Yhat, color='r', linewidth=2, label='Y-Hat/Predictions of ESN')
+    plt.legend()
+    #plt.show()
+
+    return NRMSE
+
+
+if __name__=='__main__':
+    default_test_NARMA10()

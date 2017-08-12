@@ -1,6 +1,6 @@
 import numpy as np
 
-def MAE(y, yhat):
+def MAE(y, yhat, throw=0):
     """
     Mean Absolute Error (MAE)
 
@@ -10,13 +10,16 @@ def MAE(y, yhat):
     Args:
         y (list type): target values
         yhat (list type): predictions
+        throw (int): first X values, u dont want to consider caclulate in error
 
     Returns:
         mae (float): mean absolute error
     """
+    y = y[throw:]
+    yhat = yhat[throw:]
     return np.mean( np.abs(y-yhat) )
 
-def RMSE(y, yhat):
+def RMSE(y, yhat, throw=0):
     """
     Root Mean Squared Error (RMSE)
 
@@ -26,14 +29,17 @@ def RMSE(y, yhat):
     Args:
         y (list type): target values
         yhat (list type): predictions
+        throw (int): first X values, u dont want to consider caclulate in error
 
     Returns:
         rmse (float): root mean squared error
     """
+    y = y[throw:]
+    yhat = yhat[throw:]
     return np.sqrt( np.mean( np.square(y-yhat) ) )
 
 # TODO
-def NRMSE(y, yhat):
+def NRMSE(y, yhat, throw=0):
     """
     Normalized Root Mean Squared Error (NRMSE)
 
@@ -42,8 +48,11 @@ def NRMSE(y, yhat):
     Args:
         y (list type): target values
         yhat (list type): predictions
+        throw (int): first X values, u dont want to consider caclulate in error
 
     Returns:
         nrmse (float): normalized root mean squared error
     """
+    y = y[throw:]
+    yhat = yhat[throw:]
     return np.sqrt( np.divide( np.mean( np.square(y-yhat) ), np.var(y) ) )

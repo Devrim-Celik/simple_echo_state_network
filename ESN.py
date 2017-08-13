@@ -9,8 +9,6 @@ File name: ESN.py
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg
-#import NARMA10
-#import error_metrics as em
 import csv
 
 class ESN():

@@ -1,3 +1,12 @@
+"""
+File name: ESN_test.py
+Purpose: Test cases for ESN.py
+    Author: Devrim Celik
+    Date created: 08/13/2017
+    Date last modified: 08/13/2017
+    Python Version: 3.6
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import NARMA10

@@ -2,15 +2,16 @@
 File name: ESN.py
     Author: Devrim Celik
     Date created: 08/04/2017
-    Date last modified: 08/04/2017
+    Date last modified: 08/13/2017
     Python Version: 3.6
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg
-import NARMA10
-import error_metrics as em
+#import NARMA10
+#import error_metrics as em
+import csv
 
 class ESN():
     """
@@ -55,6 +56,8 @@ class ESN():
         spec_rad = max(abs(scipy.linalg.eig(self.W)[0]))
         self.W /= spec_rad/0.9
 
+
+
     def reservoir(self, data, new_start=True):
         """
         Args:
@@ -62,11 +65,11 @@ class ESN():
             new_start (boolean): create new initial reservoir state?
 
         Attributes:
-            design_m (np.array): design matrix with: bias+input+
+            dm (np.array): design matrix with: bias+input+
                                 reservoir activity [cycles x (1+inSize+resSize)]
             R (np.array): reservoir activation [1 x resSize]
         """
-        self.design_m = np.zeros((data.shape[0], 1+self.inSize+self.resSize))
+        self.dm = np.zeros((data.shape[0], 1+self.inSize+self.resSize))
 
         # otherwise, continue from R from execution of function before
         if new_start:
@@ -87,9 +90,11 @@ class ESN():
                 np.dot(self.R, self.W))
 
             # put bias, input & reservoir activation into one row
-            self.design_m[t] = np.append(np.append(1,u), self.R)
+            self.dm[t] = np.append(np.append(1,u), self.R)
 
-        return self.design_m
+        return self.dm
+
+
 
     def plot_reservoir(self, path='pictures/', name='Plot',
                         nr_neurons=20, max_plot_cycles=100, plot_show=False):
@@ -106,9 +111,9 @@ class ESN():
         """
         # for plotting, separate bias, input, and real reservoir activations
         # which were saved all together in the res_history
-        R = self.design_m[:, -self.resSize:]
+        R = self.dm[:, -self.resSize:]
         # remove bias and get input
-        R_input = self.design_m[:, 1:-self.resSize]
+        R_input = self.dm[:, 1:-self.resSize]
 
         # check if we are below max_plot_cycles
         if R_input.shape[0] > max_plot_cycles:
@@ -122,55 +127,33 @@ class ESN():
         plt.plot(R[:limit, :nr_neurons], linewidth=2)
         plt.legend(loc='upper right')
 
-        plt.savefig(path + name + '_ReservoirActivity'+ '.png')
-        print('\t[+]Plot saved in', path + '_' + name + '.png')
+        plt.savefig(path + name + '_ReservoirActivity' + '.png')
+        print('\t[+]Plot saved in', path + name + '_ReservoirActivity' + '.png')
 
         if plot_show:
             plt.show()
 
-def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
-                        inSize=1, outSize=1, train_cycles=4000, test_cycles=100,
-                        alpha=0.8, resSize=1000):
-
-    # Get Data
-    data, Y = NARMA10.getData(train_cycles+test_cycles)
-    data_train, Y_train = data[:train_cycles], Y[:train_cycles]
-    data, Y = NARMA10.getData(train_cycles+test_cycles)
-    data_test, Y_test = data[train_cycles:], Y[train_cycles:]
-
-    # Reservoir & Training
-        # setup reservoir
-    Echo = ESN(inSize, outSize, resSize, alpha)
-        # get reservoir activations for training data
-    RA_Train  = Echo.reservoir(data_train)
-        # caclulate output matrix via moore pensore pseudoinverse (linear reg)
-    Wout = np.dot(np.linalg.pinv(RA_Train), Y_train )
-        # get reservoir activation for test data
-    RA_Test = Echo.reservoir(data_test, new_start=True)
-        # calculate predictions using output matrix
-    Yhat = np.dot(RA_Test, Wout)
-
-    # Calculate Error
-        # we throw away the first 50 values, cause the system needs
-        # enough input to being able to predict the NARMA10, since it is a
-        # delayed differential equation
-    NRMSE = em.NRMSE(Y_test, Yhat, throw=50)
-    #print(NRMSE)
-
-    # Plotting & Saving
-    plot_name += '_NRMSE=' + str(NRMSE)
-    Echo.plot_reservoir(path=plot_path, name=plot_name)
-
-    # Prediction Plot
-    plt.figure('Prediction', figsize=(20,10)).clear()
-    plt.yscale('log')
-    plt.plot(Y_test, color='k', linewidth=5, label='Y')
-    plt.plot(Yhat, color='r', linewidth=2, label='Y-Hat/Predictions of ESN')
-    plt.legend()
-    #plt.show()
-
-    return NRMSE
 
 
-if __name__=='__main__':
-    default_test_NARMA10()
+    def save_dm(self, path='csv_files/', name='ESN'):
+        """
+        Saves current design matrix in a csv file
+
+        Args:
+            path (string): path of the saved csv file
+            name (string): name of saved csv file
+        """
+        f = open(path + name + '.csv', 'w')
+        writer = csv.writer(f)
+
+        # create header
+            # get shape of input by subracting resSize and bias
+        input_shape = self.dm.shape[1]-(self.resSize+1)
+        header = ['Bias']
+        for i in range(input_shape):
+            header.append('Input'+str(i+1))
+        for i in range(self.resSize):
+            header.append('Neuron'+str(i+1))
+        writer.writerow(header)
+        writer.writerows(self.dm)
+        print('\t[+]CSV file saved in', path + name + '.csv')

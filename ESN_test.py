@@ -9,14 +9,19 @@ Purpose: Test cases for ESN.py
 
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
+
 import NARMA10
 import ESN
-import error_metrics as em
+
+
+
+import tools.error_metrics as em
 
 ################################ TESTING #################################
 def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
-                        inSize=1, outSize=1, train_cycles=4000, test_cycles=100,
-                        alpha=0.8, resSize=1000):
+                        inSize=1, outSize=1, train_cycles=4000, test_cycles=1000,
+                        alpha=0.8, resSize=1000, plot_show=False):
 
     # Get Data
     data, Y = NARMA10.getData(train_cycles+test_cycles)
@@ -45,9 +50,9 @@ def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
 
     # Plotting & Saving
     plot_name += '_NRMSE=' + str(NRMSE)
-    Echo.plot_reservoir(path=plot_path, name=plot_name)
+    Echo.plot_reservoir(path=plot_path, name=plot_name, plot_show=plot_show)
 
-    Echo.save_dm()
+    Echo.save_dm(name=plot_name)
 
     # Prediction Plot
     plt.figure('Prediction', figsize=(20,10)).clear()
@@ -55,10 +60,36 @@ def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
     plt.plot(Y_test, color='k', linewidth=5, label='Y')
     plt.plot(Yhat, color='r', linewidth=2, label='Y-Hat/Predictions of ESN')
     plt.legend()
-    #plt.show()
+    plt.savefig(plot_path + plot_name + '.png')
+    print('\t[+]Plot saved in', plot_path + plot_name + '.png')
+    if plot_show:
+        plt.show()
 
     return NRMSE
 
 
 if __name__=='__main__':
-    default_test_NARMA10()
+    # default values
+    dv = {'train_c': 4000, 'test_c':1000, 'resSize':1000, 'alpha':0.8}
+
+    # define parser & its arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-train_c', '--training_cycles', nargs=1, help="Number of Training Cycles", type=int)
+    parser.add_argument('-test_c', '--testing_cycles', nargs=1, help="Number of Testing Cycles", type=int)
+    parser.add_argument('-rs', '--size', nargs=1, help="Size of Reservoir", type=int)
+    parser.add_argument('-a', '--alpha', nargs=1, help="Leaking Rate", type=float)
+    parser.add_argument('-s', '--show', const=True, nargs="?", help="Show Plot")
+    # parse
+    args = parser.parse_args()
+    # collect values
+    arguments = [args.training_cycles, args.testing_cycles, args.size, args.alpha]
+
+    # check if default should be replaced
+    for nr, key in enumerate(dv.keys()):
+        if arguments[nr] != None:
+            dv[key] = arguments[nr][0]
+    # add show separatly
+    dv['show'] = args.show!=None
+
+    # test
+    default_test_NARMA10(train_cycles=dv['train_c'], test_cycles=dv['test_c'], resSize=dv['resSize'], alpha=dv['alpha'], plot_show=dv['show'])

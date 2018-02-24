@@ -14,10 +14,6 @@ import argparse
 import NARMA10
 import ESN
 
-
-
-import tools.error_metrics as em
-
 ################################ TESTING #################################
 def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
                         inSize=1, outSize=1, train_cycles=4000, test_cycles=1000,
@@ -45,11 +41,14 @@ def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
         # we throw away the first 50 values, cause the system needs
         # enough input to being able to predict the NARMA10, since it is a
         # delayed differential equation
-    NRMSE = em.NRMSE(Y_test, Yhat, throw=50)
+    NRMSE = np.sqrt(np.divide(                          \
+        np.mean(np.square(Y_test[50:]-Yhat[50:])),   \
+        np.var(Y_test[50:])))
+
     #print(NRMSE)
 
     # Plotting & Saving
-    plot_name += '_NRMSE=' + str(NRMSE)
+    plot_name += '_NRMSE={0:.4f}'.format(NRMSE)
     Echo.plot_reservoir(path=plot_path, name=plot_name, plot_show=plot_show)
 
     Echo.save_dm(name=plot_name)

@@ -8,7 +8,6 @@ File name: ESN.py
 
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.linalg
 import csv
 
 class ESN():
@@ -51,7 +50,7 @@ class ESN():
 
         # calculate spectral radius and scale W, so its new spectral radius
         # is slighty smaller than 1
-        spec_rad = max(abs(scipy.linalg.eig(self.W)[0]))
+        spec_rad = max(abs(np.linalg.eig(self.W)[0]))
         self.W /= spec_rad/0.9
 
 

@@ -52,9 +52,9 @@ python3 ESN_test.py -s
 ---
 
 ## NARMA10 Prediction
-![NARMA10 Prediction]()
+![NARMA10 Prediction](https://github.com/MistySheep/Echo_State_Network/blob/master/images/prediction.png)
 
 ---
 
 ## Reservoir Activity Sample
-![Reservoir Activity Sample]()
+![Reservoir Activity Sample](https://github.com/MistySheep/Echo_State_Network/blob/master/images/reservoir_act.png)

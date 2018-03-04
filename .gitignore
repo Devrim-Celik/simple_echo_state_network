@@ -1,5 +1,6 @@
 __pycache__
 *.pyc
 venv
-
+*.png
+*.csv
 .DS_Store

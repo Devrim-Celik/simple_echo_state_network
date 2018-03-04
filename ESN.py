@@ -1,14 +1,10 @@
-"""
-File name: ESN.py
-    Author: Devrim Celik
-    Date created: 08/04/2017
-    Date last modified: 08/13/2017
-    Python Version: 3.6
-"""
+__author__ = "Devrim Celik"
 
 import numpy as np
 import matplotlib.pyplot as plt
 import csv
+
+#==============================================================================#
 
 class ESN():
     """
@@ -93,7 +89,7 @@ class ESN():
 
 
 
-    def plot_reservoir(self, path='pictures/', name='Plot',
+    def plot_reservoir(self, path='images/', name='Plot',
                         nr_neurons=20, max_plot_cycles=100, plot_show=False):
         """
         Plotting reservoir states and their inputs from last use of .reservoir()

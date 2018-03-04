@@ -1,12 +1,8 @@
-"""
-File name: builtNARMA10.py
-    Author: Devrim Celik
-    Date created: 7/27/2017
-    Date last modified: 8/02/2017
-    Python Version: 3.6
-"""
+__author__ = "Devrim Celik"
 
 import numpy as np
+
+#==============================================================================#
 
 def getData(N, Lag=0):
     """

@@ -1,11 +1,4 @@
-"""
-File name: ESN_test.py
-Purpose: Test cases for ESN.py
-    Author: Devrim Celik
-    Date created: 08/13/2017
-    Date last modified: 08/13/2017
-    Python Version: 3.6
-"""
+__author__ = "Devrim Celik"
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,8 +7,9 @@ import argparse
 import NARMA10
 import ESN
 
-################################ TESTING #################################
-def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
+#==============================================================================#
+# testing function
+def default_test_NARMA10(plot_path='images/', plot_name='test_NARMA10',
                         inSize=1, outSize=1, train_cycles=4000, test_cycles=1000,
                         alpha=0.8, resSize=1000, plot_show=False):
 
@@ -54,10 +48,10 @@ def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
     Echo.save_dm(name=plot_name)
 
     # Prediction Plot
-    plt.figure('Prediction', figsize=(20,10)).clear()
+    plt.figure('Prediction', figsize=(14,7)).clear()
     plt.yscale('log')
-    plt.plot(Y_test, color='k', linewidth=5, label='Y')
-    plt.plot(Yhat, color='r', linewidth=2, label='Y-Hat/Predictions of ESN')
+    plt.plot(Y_test, color='red', linewidth=5, label='Target Value')
+    plt.plot(Yhat, color='blue', linestyle="--", linewidth=1, label='ESN Prediction')
     plt.legend()
     plt.savefig(plot_path + plot_name + '.png')
     print('\t[+]Plot saved in', plot_path + plot_name + '.png')
@@ -66,6 +60,7 @@ def default_test_NARMA10(plot_path='pictures/', plot_name='test_NARMA10',
 
     return NRMSE
 
+#==============================================================================#
 
 if __name__=='__main__':
     # default values
